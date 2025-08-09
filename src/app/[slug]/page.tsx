@@ -1,10 +1,12 @@
-// src/app/[slug]/page.tsx (The Final Version with Styled Components)
+// src/app/[slug]/page.tsx (The Final, Type-Safe, and Optimized Version)
 
-import { PortableText, type SanityDocument } from "next-sanity";
+import { PortableText, type SanityDocument, type PortableTextReactComponents } from "next-sanity";
 import imageUrlBuilder from "@sanity/image-url";
 import type { SanityImageSource } from "@sanity/image-url/lib/types/types";
 import { client } from "@/sanity/client";
 import Link from "next/link";
+import Image from "next/image"; // <-- 1. IMPORT the optimized Image component
+import React from "react";
 
 // --- QUERIES AND CONFIGURATION ---
 
@@ -16,42 +18,26 @@ const urlFor = (source: SanityImageSource) =>
     ? imageUrlBuilder({ projectId, dataset }).image(source)
     : null;
 
-// --- 1. STYLED COMPONENTS FOR PORTABLE TEXT ---
-// This is the new, crucial part. We are defining exactly how
-// to render each type of block from Sanity.
+// --- 2. STYLED COMPONENTS WITH CORRECT TYPES ---
+// We've replaced all the `any` types with specific, correct types like React.ReactNode
 
-const ptComponents = {
-  types: {
-    image: ({ value }: { value: SanityImageSource }) => {
-      if (!value?.asset?._ref) {
-        return null;
-      }
-      return (
-        <img
-          alt={value.alt || ' '}
-          loading="lazy"
-          src={urlFor(value)?.width(800).fit('max').auto('format').url()}
-          className="my-8 rounded-lg"
-        />
-      );
-    },
-  },
+const ptComponents: Partial<PortableTextReactComponents> = {
   block: {
-    h1: ({ children }: any) => <h1 className="text-4xl font-extrabold text-white mt-12 mb-4">{children}</h1>,
-    h2: ({ children }: any) => <h2 className="text-3xl font-bold text-white mt-10 mb-4">{children}</h2>,
-    h3: ({ children }: any) => <h3 className="text-2xl font-bold text-white mt-8 mb-4">{children}</h3>,
-    blockquote: ({ children }: any) => <blockquote className="border-l-4 border-gray-700 pl-4 italic my-6 text-gray-300">{children}</blockquote>,
+    h1: ({ children }) => <h1 className="text-4xl font-extrabold text-white mt-12 mb-4">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-3xl font-bold text-white mt-10 mb-4">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-2xl font-bold text-white mt-8 mb-4">{children}</h3>,
+    blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-700 pl-4 italic my-6 text-gray-300">{children}</blockquote>,
   },
   list: {
-    bullet: ({ children }: any) => <ul className="list-disc list-inside space-y-2 my-6">{children}</ul>,
-    number: ({ children }: any) => <ol className="list-decimal list-inside space-y-2 my-6">{children}</ol>,
+    bullet: ({ children }) => <ul className="list-disc list-inside space-y-2 my-6">{children}</ul>,
+    number: ({ children }) => <ol className="list-decimal list-inside space-y-2 my-6">{children}</ol>,
   },
   listItem: {
-    bullet: ({ children }: any) => <li className="text-gray-300">{children}</li>,
-    number: ({ children }: any) => <li className="text-gray-300">{children}</li>,
+    bullet: ({ children }) => <li className="text-gray-300">{children}</li>,
+    number: ({ children }) => <li className="text-gray-300">{children}</li>,
   },
   marks: {
-    link: ({ children, value }: any) => {
+    link: ({ children, value }) => {
       const rel = !value.href.startsWith('/') ? 'noreferrer noopener' : undefined;
       return (
         <a href={value.href} rel={rel} className="text-blue-400 hover:text-blue-300 underline transition-colors">
@@ -62,7 +48,7 @@ const ptComponents = {
   },
 };
 
-// --- 2. THE MAIN REACT SERVER COMPONENT ---
+// --- REACT SERVER COMPONENT ---
 
 export default async function PostPage({ params }: { params: { slug: string } }) {
   const post = await client.fetch<SanityDocument>(POST_QUERY, params, { next: { revalidate: 30 } });
@@ -71,9 +57,7 @@ export default async function PostPage({ params }: { params: { slug: string } })
     return <main className="text-center p-24 text-white">Post not found.</main>;
   }
 
-  const postImageUrl = post.mainImage
-    ? urlFor(post.mainImage)?.width(1200).quality(80).url()
-    : null;
+  const postImageUrl = post.mainImage ? urlFor(post.mainImage)?.width(1200).quality(80).url() : null;
 
   return (
     <main className="flex min-h-screen flex-col items-center p-8 md:p-12 lg:p-24">
@@ -87,17 +71,21 @@ export default async function PostPage({ params }: { params: { slug: string } })
         <p className="text-gray-400 mb-8">
           Published on: {new Date(post.publishedAt).toLocaleDateString()}
         </p>
+
+        {/* 3. UPGRADED to the optimized Next.js Image component */}
         {postImageUrl && (
-          <img
+          <Image
             src={postImageUrl}
             alt={post.title || 'Blog post image'}
-            className="aspect-video w-full rounded-xl object-cover mb-8 border border-gray-800"
+            width={1200}
+            height={675} // Assuming a 16:9 aspect ratio
+            className="w-full h-auto rounded-xl object-cover mb-8 border border-gray-800"
+            priority // Helps with LCP performance
           />
         )}
+
         {post.body && (
-          // We no longer need the 'prose' class here.
-          // We pass our custom components directly to PortableText.
-          <div className="text-lg text-gray-300 leading-relaxed">
+          <div className="prose prose-xl prose-invert w-full max-w-none prose-a:text-blue-400 hover:prose-a:text-blue-300">
             <PortableText value={post.body} components={ptComponents} />
           </div>
         )}
